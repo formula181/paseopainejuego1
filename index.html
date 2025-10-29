@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rompecabezas Paseo Paine</title>
+  <meta name="description" content="Juego de rompecabezas con fotos familiares. Hecho por CÉSAR ANDRÉS con ayuda de su asistente." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --card: #ffffff;
+      --text: #151718;
+      --muted: #6b7280;
+      --brand: #0ea5e9;
+      --ring: rgba(14,165,233,0.35);
+      --border: #e5e7eb;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji'; background: var(--bg); color: var(--text);}
+    .wrap { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+    .title { font-size: clamp(22px, 3vw, 36px); font-weight: 800; margin: 0 0 4px 0; }
+    .subtitle { color: var(--muted); margin: 0 0 16px 0; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 980px) { .grid { grid-template-columns: 360px 1fr; gap: 24px; } }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); }
+    .controls label { font-size: 12px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 6px; }
+    .row { display: flex; gap: 10px; align-items: center; }
+    select, button { appearance: none; border: 1px solid var(--border); background: #fff; padding: 8px 12px; border-radius: 12px; font-size: 14px; }
+    button { cursor: pointer; transition: transform .02s ease; }
+    button:hover { box-shadow: 0 0 0 4px var(--ring); }
+    button:active { transform: translateY(1px); }
+    .btn-brand { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .kpis { display:flex; gap: 16px; justify-content: space-between; }
+    .kpi .h { color: var(--muted); font-size: 12px; }
+    .kpi .v { font-size: 20px; font-weight: 700; }
+    .preview img { width: 100%; border-radius: 12px; border: 1px solid var(--border);}
+    .board-wrap { position: relative; }
+    .board { aspect-ratio: 1/1; width: 100%; max-width: 820px; margin: 0 auto; border-radius: 18px; overflow: hidden; border: 1px solid var(--border); display: grid; background: #fff; }
+    .piece { border: 1px solid rgba(0,0,0,0.06); background-repeat: no-repeat; background-size: var(--bgSize); background-position: var(--bgPos); cursor: pointer; user-select: none; }
+    .piece.sel { outline: 3px solid var(--brand); z-index: 2; }
+    .overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.35); }
+    .overlay.show { display:flex; }
+    .modal { background: #fff; border-radius: 14px; padding: 16px 20px; text-align: center; border: 1px solid var(--border); }
+    .levelbar { display:flex; flex-wrap: wrap; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 999px; background: #e5e7eb; border:1px solid var(--border);}
+    .dot.done { background: #22c55e; border-color:#22c55e; }
+    .dot.curr { background: var(--brand); border-color: var(--brand); }
+    .small { font-size: 12px; color: var(--muted); }
+    .footer { margin-top: 12px; font-size: 12px; color: var(--muted); text-align: center; }
+    .hidden { display:none; }
+    .brandbar { display:flex; align-items:center; gap:12px; background:#ffffff; border:1px solid var(--border); border-radius:16px; padding:10px 12px; margin-bottom:14px; box-shadow: 0 2px 12px rgba(0,0,0,0.03); }
+    .brandtitle { font-weight:800; letter-spacing:.2px; }
+    .brandsub { font-size:12px; color: var(--muted); }
+
+    .modalbrand { display:flex; align-items:center; justify-content:center; margin-bottom:8px; }
+
+    .lb-table { width:100%; border-collapse: collapse; font-size:12px; }
+    .lb-table th, .lb-table td { border-bottom:1px solid var(--border); padding:6px 4px; text-align:left; }
+    .toast { position: fixed; bottom: 18px; right: 18px; background:#111827; color:#fff; padding:10px 14px; border-radius:10px; font-size:12px; box-shadow: 0 8px 20px rgba(0,0,0,.2); z-index: 99; }
+
+    .gift.gold .box { background:#f59e0b; }
+    .gift.gold .lid { background:#d97706; }
+    .gift.gold .ribbon { background:#7c3aed; }
+
+    .confetti-canvas { position:absolute; inset:0; pointer-events:none; }
+    .gift { width: 90px; height: 80px; position: relative; margin: 8px auto 0; cursor: pointer; }
+    .gift .box { position:absolute; bottom:0; width:100%; height:70%; background:#ef4444; border-radius:8px; box-shadow: inset 0 -6px 0 rgba(0,0,0,0.08); }
+    .gift .lid { position:absolute; top:0; left:0; width:100%; height:35%; background:#dc2626; border-radius:8px; transform-origin: left bottom; transition: transform .35s ease; }
+    .gift .ribbon { position:absolute; left:50%; transform:translateX(-50%); width:16px; height:100%; background:#fde047; }
+    .gift.open .lid { transform: rotate(-25deg) translate(-6px, -8px); }
+
+  
+    .victory-banner { display:flex; align-items:center; gap:10px; justify-content:center; padding:8px 10px; border-radius:12px; background: linear-gradient(135deg,#0ea5e9 0%,#22c55e 100%); color:#fff; margin-bottom:10px; }
+    .vb-logo { width:28px; height:28px; border-radius:999px; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.2); }
+    .vb-title { font-weight:800; font-size:14px; letter-spacing:.2px; }
+    .lb-top { display:flex; gap:10px; margin:6px 0 8px; }
+    .badge { display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; background:#f3f4f6; border:1px solid var(--border); font-size:12px; }
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+  <div class="brandbar">
+    <div class="logo">
+      <svg viewBox="0 0 64 64" width="40" height="40" aria-hidden="true">
+        <defs>
+          <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#0ea5e9"></stop>
+            <stop offset="1" stop-color="#22c55e"></stop>
+          </linearGradient>
+        </defs>
+        <circle cx="32" cy="32" r="30" fill="url(#g1)"></circle>
+        <text x="32" y="38" text-anchor="middle" font-size="22" fill="#fff" font-family="Inter, Arial" font-weight="800">PP</text>
+      </svg>
+    </div>
+    <div class="brandtext">
+      <div class="brandtitle">Rompecabezas Paseo Paine</div>
+      <div class="brandsub">Familia &amp; amigos • 2025</div>
+    </div>
+  </div>
+
+        <p class="subtitle">Arma todos los niveles con tus fotos del paseo. Intercambia dos piezas con clic o arrastra y suelta.</p>
+
+    <div class="grid">
+      <aside class="card controls">
+        <div class="levelbar" id="levelbar"></div>
+        <div style="height:8px"></div>
+
+        <div class="row" style="justify-content: space-between;">
+          <div>
+            <label>Nivel</label>
+            <div><strong id="levelName">1 / 1</strong></div>
+          </div>
+          <div>
+            <label>Dificultad</label>
+            <select id="gridSize">
+              <option>3</option>
+              <option selected>4</option>
+              <option>5</option>
+              <option>6</option>
+              <option>7</option>
+              <option>8</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="row" style="flex-wrap: wrap;">
+          <button id="btnShuffle" class="btn-brand">Barajar</button>
+          <button id="btnOrder">Ordenar</button>
+          <button id="btnPrev">Anterior</button>
+          <button id="btnNext">Siguiente</button>
+          <button id="btnPreview">Vista previa</button>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="kpis">
+          <div class="kpi">
+            <div class="h">Movimientos</div>
+            <div class="v" id="moves">0</div>
+          </div>
+          <div class="kpi">
+            <div class="h">Tiempo</div>
+            <div class="v" id="time">00:00</div>
+          </div>
+          <div class="kpi">
+            <div class="h">Mejor</div>
+            <div class="v small" id="best">—</div>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+        <div class="preview" id="previewBox">
+          <label>Vista previa</label>
+          <img id="previewImg" alt="preview">
+        </div>
+        <div style="height:12px"></div>
+        <div class="card" style="border-radius:14px; border:1px dashed var(--border)">
+          <label>Ranking global</label>
+          <div id="leaderboardTop"></div>
+          <div id="leaderboard" class="small">Cargando ranking…</div>
+        </div>
+
+      </aside>
+
+      <main class="board-wrap">
+        <div id="board" class="board"></div>
+        <canvas id="confetti" class="confetti-canvas"></canvas>
+        <div class="overlay" id="overlay">
+          <div class="modal">
+            <div class="modalbrand">
+              <svg viewBox="0 0 64 64" width="38" height="38" aria-hidden="true" style="margin-right:8px;">
+                <defs><linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#0ea5e9"></stop>
+                  <stop offset="1" stop-color="#22c55e"></stop>
+                </linearGradient></defs>
+                <circle cx="32" cy="32" r="30" fill="url(#g2)"></circle>
+                <text x="32" y="38" text-anchor="middle" font-size="22" fill="#fff" font-family="Inter, Arial" font-weight="800">PP</text>
+              </svg>
+              <div>
+                <div style="font-weight:800;">Rompecabezas Paseo Paine</div>
+                <div class="small">¡Buenísima esa jugada! 🧩</div>
+              </div>
+            </div>
+
+            <div class="victory-banner">
+              <div class="vb-logo" title="Logo"></div>
+              <div class="vb-title">Rompecabezas Paseo Paine</div>
+            </div>
+            <h3 style="margin:0 0 6px 0">¡Nivel completado! 🎉</h3>
+            <p style="margin:0 0 10px 0"><span id="stats"></span></p>
+            <div class="row" style="justify-content:center; gap:6px; margin:4px 0 10px;">
+              <input id="playerName" placeholder="Tu nombre" style="border:1px solid var(--border); border-radius:10px; padding:6px 10px; font-size:12px; min-width:160px;">
+              <button id="btnSaveScore" class="btn-brand">Guardar puntaje</button>
+              <button id="btnShareWA">Compartir</button>
+              <button id="btnShareScore">Compartir puntaje</button>
+            </div>
+            <div class="row" style="justify-content:center;">
+              <button id="btnReplay">Repetir</button>
+              <button id="btnGoNext" class="btn-brand">Siguiente nivel</button>
+            </div>
+            <div style="height:10px"></div>
+            <div id="giftArea"></div>
+            <div id="giftNote" class="small"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <div class="footer">Hecho con cariño para la familia 💙</div>
+  </div>
+
+  <script>
+    // === Configuración ===
+    const IMAGES = ["./images/foto_01.jpeg", "./images/foto_02.jpeg", "./images/foto_03.jpeg", "./images/foto_04.jpeg", "./images/foto_05.jpeg", "./images/foto_06.jpeg", "./images/foto_07.jpeg", "./images/foto_08.jpeg", "./images/foto_09.jpeg"];
+    const TITLE = "Rompecabezas Paseo Paine";
+
+    // === Estado ===
+    let level = 0;
+    let grid = 4;
+    let pieces = [];
+    let selected = null;
+    let moves = 0;
+    let seconds = 0;
+    let timer = null;
+    let running = false;
+
+    // === Utilidades ===
+    const $ = (s)=>document.querySelector(s);
+    function fmt(s){ const m=Math.floor(s/60).toString().padStart(2,'0'); const ss=(s%60).toString().padStart(2,'0'); return m+':'+ss; }
+    function bestKey(){ return TITLE+':best:'+IMAGES[level]+':g'+grid; }
+    function loadBest(){ return localStorage.getItem(bestKey()); }
+    function saveBest(){ localStorage.setItem(bestKey(), JSON.stringify({moves, seconds})); }
+    function drawLevelDots(){
+      const bar = $("#levelbar");
+      bar.innerHTML = "";
+      IMAGES.forEach((_,i)=>{
+        const d = document.createElement('div');
+        d.className = 'dot' + (i===level?' curr':'') + (localStorage.getItem(TITLE+':done:'+IMAGES[i])?' done':'');
+        bar.appendChild(d);
+      });
+    }
+
+    // === Inicialización ===
+    const board = $("#board");
+    const gridSel = $("#gridSize");
+    const movesEl = $("#moves");
+    const timeEl = $("#time");
+    const bestEl = $("#best");
+    const overlay = $("#overlay");
+    const statsEl = $("#stats");
+    const levelName = $("#levelName");
+    const previewImg = $("#previewImg");
+    const previewBox = $("#previewBox");
+
+    function init(){
+      // Construcción del tablero y estado base
+
+      grid = parseInt(gridSel.value,10);
+      const total = grid*grid;
+      pieces = [...Array(total).keys()];
+      selected = null; moves=0; seconds=0; running=false;
+      timeEl.textContent = '00:00'; movesEl.textContent = '0';
+      board.style.gridTemplateColumns = `repeat(${grid}, 1fr)`;
+      board.style.gridTemplateRows = `repeat(${grid}, 1fr)`;
+      board.innerHTML = '';
+      for (let i=0;i<total;i++){
+        const el = document.createElement('div');
+        el.className = 'piece';
+        el.dataset.index = i;
+        el.draggable = true;
+        el.addEventListener('click', ()=>onPieceClick(i));
+        el.addEventListener('dragstart', (e)=>{ e.dataTransfer.setData('text/plain', i); });
+        el.addEventListener('dragover', (e)=>e.preventDefault());
+        el.addEventListener('drop', (e)=>{ e.preventDefault(); const from = parseInt(e.dataTransfer.getData('text/plain'),10); swap(from,i); });
+        board.appendChild(el);
+      }
+      applyBackgrounds();
+      const b = loadBest();
+      bestEl.textContent = b? JSON.parse(b).seconds+'s / '+JSON.parse(b).moves+' mov' : '—';
+      $("#btnPrev").disabled = level===0;
+      $("#btnNext").disabled = level===IMAGES.length-1;
+      levelName.textContent = (level+1) + ' / ' + IMAGES.length;
+      previewImg.src = IMAGES[level];
+      drawLevelDots();
+      // Barajar por defecto sin iniciar el cronómetro
+      shuffleSilent();
+    }
+
+    function applyBackgrounds(){
+      const total = grid*grid;
+      for (let cell=0; cell<total; cell++){
+        const correct = pieces[cell];
+        const r = Math.floor(correct / grid);
+        const c = correct % grid;
+        const bgSize = `${grid*100}% ${grid*100}%`;
+        const bgPos = `${(c*100)/(grid-1)}% ${(r*100)/(grid-1)}%`;
+        const el = board.children[cell];
+        el.style.setProperty('--bgSize', bgSize);
+        el.style.setProperty('--bgPos', bgPos);
+        el.style.backgroundImage = `url('${IMAGES[level]}')`;
+        el.classList.toggle('sel', selected===cell);
+      }
+    }
+
+    function startTimer(){
+      if (running) return;
+      running = true;
+      timer = setInterval(()=>{ seconds++; timeEl.textContent = fmt(seconds); }, 1000);
+    }
+    function stopTimer(){ running=false; if (timer) clearInterval(timer); }
+
+    function shuffle(){
+      // Fisher-Yates
+      for (let i=pieces.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pieces[i],pieces[j]]=[pieces[j],pieces[i]]; }
+      moves=0; seconds=0; timeEl.textContent='00:00'; movesEl.textContent='0'; selected=null; stopTimer(); startTimer(); applyBackgrounds();
+    }
+
+    function shuffleSilent(){
+      // Igual que shuffle pero sin iniciar cronómetro
+      for (let i=pieces.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pieces[i],pieces[j]]=[pieces[j],pieces[i]]; }
+      moves=0; seconds=0; document.getElementById('time').textContent='00:00'; document.getElementById('moves').textContent='0'; selected=null; running=false; applyBackgrounds();
+    }
+
+    function resetOrdered(){ pieces = [...Array(grid*grid).keys()]; moves=0; seconds=0; timeEl.textContent='00:00'; movesEl.textContent='0'; selected=null; stopTimer(); applyBackgrounds(); }
+
+    function onPieceClick(i){
+      if (selected===null){ selected=i; applyBackgrounds(); }
+      else { swap(selected, i); selected=null; applyBackgrounds(); }
+    }
+
+    function swap(i,j){
+      if (i===j) return;
+      if (!running) startTimer();
+      [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+      moves++; movesEl.textContent = String(moves);
+      applyBackgrounds();
+      checkSolved();
+    }
+
+    function checkSolved(){
+      const ok = pieces.every((v,i)=>v===i);
+      if (ok){
+        stopTimer();
+        const prev = loadBest();
+        const prevObj = prev? JSON.parse(prev): null;
+        if (!prevObj || seconds < prevObj.seconds || (seconds===prevObj.seconds && moves<prevObj.moves)){ saveBest(); }
+        statsEl.textContent = `Tiempo: ${fmt(seconds)} • Movimientos: ${moves}`;
+        overlay.classList.add('show');
+        celebrate();
+        stopSuspense();
+        playWinnerSFX();
+        buildPrize();
+        localStorage.setItem(TITLE+':done:'+IMAGES[level], '1');
+        drawLevelDots();
+        
+        // Prepare default player name and score
+        const nameInput = document.getElementById('playerName');
+        if (nameInput && !nameInput.value) nameInput.value = localStorage.getItem('pp:lastName') || 'Jugador';
+        const score = Math.max(1, Math.round(10000 / (seconds + Math.max(1,moves))));
+        document.getElementById('btnSaveScore').onclick = () => {
+          const name = (nameInput.value || 'Jugador').slice(0,30);
+          localStorage.setItem('pp:lastName', name);
+          saveScore({ name, score, seconds, moves, level: (level+1) });
+        };
+
+        const shareBtn = document.getElementById('btnShareScore');
+        if (shareBtn){
+          shareBtn.onclick = () => {
+            const name = (nameInput?.value || localStorage.getItem('pp:lastName') || 'Jugador');
+            const msg = encodeURIComponent(`Mi puntaje en Rompecabezas Paseo Paine: ${name} · ${score} puntos · ${seconds}s · ${moves} mov · Nivel ${level+1}`);
+            const url = (location.origin + location.pathname);
+            const wa = `https://wa.me/?text=${msg}%20${encodeURIComponent(url)}`;
+            window.open(wa, '_blank');
+          };
+        }
+
+
+      }
+    }
+
+    
+    // === Confetti ===
+    const confetti = document.getElementById('confetti');
+    const ctx = confetti.getContext('2d');
+    let confettiPieces = [];
+    function sizeCanvas(){ confetti.width = board.clientWidth; confetti.height = board.clientWidth; }
+    window.addEventListener('resize', sizeCanvas);
+    sizeCanvas();
+    function random(min,max){ return Math.random()*(max-min)+min; }
+    function spawnConfetti(){
+      confettiPieces = Array.from({length: 180}, ()=> ({
+        x: random(0, confetti.width),
+        y: random(-confetti.height*0.3, 0),
+        r: random(2, 5),
+        c: `hsl(${Math.floor(random(0,360))}deg 90% 60%)`,
+        vx: random(-1,1),
+        vy: random(2,5),
+        a: random(0.02, 0.05)
+      }));
+    }
+    let confettiAnimating = false;
+    function drawConfetti(){
+      if (!confettiAnimating) return;
+      ctx.clearRect(0,0,confetti.width,confetti.height);
+      confettiPieces.forEach(p=>{
+        p.x += p.vx; p.y += p.vy; p.vy += p.a;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle=p.c; ctx.fill();
+        if (p.y > confetti.height+10) { p.y = -10; p.vy = random(2,5); }
+      });
+      requestAnimationFrame(drawConfetti);
+    }
+    function celebrate(){
+      sizeCanvas();
+      spawnConfetti();
+      confettiAnimating = true;
+      drawConfetti();
+      setTimeout(()=>{ confettiAnimating = false; ctx.clearRect(0,0,confetti.width,confetti.height); }, 3500);
+    }
+
+
+    // === Audio: Suspense loop & Winner SFX ===
+    let audioCtx;
+    let bgNodes = [];
+    let bgPlaying = false;
+
+    function ensureAudio(){
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+      return audioCtx;
+    }
+
+    function startSuspense(){
+      const ctx = ensureAudio();
+      if (bgPlaying) return;
+      bgPlaying = true;
+      // Low bass drone
+      const osc1 = ctx.createOscillator(); const g1 = ctx.createGain();
+      osc1.type = 'sawtooth'; osc1.frequency.value = 55; g1.gain.value = 0.02; osc1.connect(g1).connect(ctx.destination); osc1.start();
+      // Ticking
+      const osc2 = ctx.createOscillator(); const g2 = ctx.createGain();
+      osc2.type = 'square'; osc2.frequency.value = 8; g2.gain.value = 0.01; osc2.connect(g2).connect(ctx.destination); osc2.start();
+      // High shimmer
+      const osc3 = ctx.createOscillator(); const g3 = ctx.createGain();
+      osc3.type = 'triangle'; osc3.frequency.value = 440; g3.gain.value = 0.005; osc3.connect(g3).connect(ctx.destination); osc3.start();
+      bgNodes = [osc1, g1, osc2, g2, osc3, g3];
+    }
+    function stopSuspense(){
+      if (!audioCtx) return;
+      bgNodes.forEach(n => { if (n.stop) { try{ n.stop(); }catch(e){} } if (n.disconnect) { try{ n.disconnect(); }catch(e){} } });
+      bgNodes = []; bgPlaying = false;
+    }
+
+    function playWinnerSFX(){
+      const ctx = ensureAudio();
+      const g = ctx.createGain(); g.gain.value = 0.04; g.connect(ctx.destination);
+      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
+      let t = ctx.currentTime;
+      notes.forEach((f,i)=>{
+        const o = ctx.createOscillator(); o.type='triangle'; o.frequency.value = f; o.connect(g);
+        o.start(t + i*0.15); o.stop(t + i*0.15 + 0.2);
+      });
+      // fade
+      const end = t + notes.length*0.15 + 0.4;
+      g.gain.setValueAtTime(0.04, end-0.2); g.gain.linearRampToValueAtTime(0.0, end);
+      setTimeout(()=>{ try{ g.disconnect(); }catch(e){} }, 1000);
+    }
+
+    // Try autoplay; show toast if blocked
+    function toast(msg){ const el=document.createElement('div'); el.className='toast'; el.textContent=msg; document.body.appendChild(el); setTimeout(()=>el.remove(), 2800); }
+    try { startSuspense(); } catch(e) { /* ignored */ }
+    document.addEventListener('pointerdown', ()=>{ if (!bgPlaying) { startSuspense(); toast('🔊 Sonido activado'); } }, { once:true });
+
+    // === Leaderboard (simple API) ===
+    const API_BASE = '/api'; // adjust if deploying behind a path
+    async function fetchLeaderboard(){
+      try{
+        const r = await fetch(API_BASE + '/scores?limit=10');
+        const data = await r.json();
+        renderLeaderboard(data);
+      }catch(e){
+        document.getElementById('leaderboard').textContent = 'No disponible (conecta el servidor).';
+      }
+    }
+    function renderLeaderboard(rows){
+      const top = document.getElementById('leaderboardTop');
+      const cont = document.getElementById('leaderboard');
+      if (top){
+        const t3 = (rows||[]).slice(0,3);
+        if (t3.length){
+          const medals = ['🥇','🥈','🥉'];
+          top.innerHTML = '<div class="lb-top">' + t3.map((r,i)=>`<div class="badge">${medals[i]} <strong>${escapeHtml(r.name||'—')}</strong> · ${r.score}</div>`).join('') + '</div>';
+        } else { top.innerHTML = ''; }
+      }
+      if (!Array.isArray(rows) || rows.length===0){ cont.textContent = 'Aún sin puntajes.'; return; }
+      const head = '<tr><th>#</th><th>Jugador</th><th>Puntaje</th><th>Tiempo</th><th>Mov</th><th>Nivel</th></tr>';
+      const body = rows.map((r,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(r.name||'—')}</td><td>${r.score}</td><td>${r.seconds}s</td><td>${r.moves}</td><td>${r.level}</td></tr>`).join('');
+      cont.innerHTML = `<table class="lb-table">${head}${body}</table>`;
+    }
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+    async function saveScore({name, score, seconds, moves, level}){
+      try{
+        const r = await fetch(API_BASE + '/scores', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, score, seconds, moves, level}) });
+        if (!r.ok) throw new Error('HTTP '+r.status);
+        fetchLeaderboard();
+        toast('✅ Puntaje guardado');
+      }catch(e){
+        toast('⚠️ No se pudo guardar el puntaje (conecta el servidor)');
+      }
+    }
+
+    
+    function buildShareMessage(name, score, seconds, moves, level){
+      const msg = `Mi puntaje en Rompecabezas Paseo Paine: ${score} pts · Nivel ${level} · Tiempo ${seconds}s · Mov ${moves}. ¿Te atreves a superarlo?`;
+      return 'https://wa.me/?text=' + encodeURIComponent(msg);
+    }
+
+
+    // === Audio files ===
+    const bgAudio = document.getElementById('bgAudio');
+    const winAudio = document.getElementById('winAudio');
+
+    async function startSuspense(){
+      try { await bgAudio.play(); } catch(e) { /* blocked by autoplay policy */ }
+    }
+    function stopSuspense(){ try { bgAudio.pause(); bgAudio.currentTime = 0; } catch(e){} }
+    function playWinnerSFX(){ try { winAudio.currentTime = 0; winAudio.play(); } catch(e){} }
+
+    // Attempt autoplay & fallback on user gesture
+    startSuspense();
+    const _resumeOnce = () => { startSuspense(); document.removeEventListener('pointerdown', _resumeOnce); };
+    document.addEventListener('pointerdown', _resumeOnce);
+    
+    // Initial leaderboard load
+    fetchLeaderboard();
+
+    // === Eventos UI ===
+    document.getElementById("btnShuffle").addEventListener('click', shuffle);
+    document.getElementById("btnOrder").addEventListener('click', resetOrdered);
+    document.getElementById("btnPrev").addEventListener('click', ()=>{ if (level>0){ level--; init(); }});
+    document.getElementById("btnNext").addEventListener('click', ()=>{ if (level<IMAGES.length-1){ level++; init(); }});
+    document.getElementById("btnPreview").addEventListener('click', ()=> document.getElementById("previewBox").classList.toggle('hidden'));
+    document.getElementById("btnReplay").addEventListener('click', ()=>{ document.getElementById("overlay").classList.remove('show'); resetOrdered(); });
+    document.getElementById("btnGoNext").addEventListener('click', ()=>{ document.getElementById("overlay").classList.remove('show'); if (level<IMAGES.length-1){ level++; init(); }});
+    document.getElementById("gridSize").addEventListener('change', ()=>{ grid=parseInt(document.getElementById("gridSize").value,10); init(); });
+
+
+    function buildPrize(){
+      const area = document.getElementById('giftArea');
+      const note = document.getElementById('giftNote');
+      area.innerHTML = ''; note.textContent = '';
+      // Show prizes only at specific levels (1-indexed): 5 and 9
+      const levelIndex = level + 1;
+      if (levelIndex===5 || levelIndex===9){
+        const prizeText = levelIndex===5 ? 'TE HAS GANADO UNA CAJA DE CERVEZA PARA EL PROXIMO PASEO' : 'TE HAS GANADO UNA BOTELLA DE WHISKY';
+        const gift = document.createElement('div');
+        gift.className = 'gift ' + (levelIndex===9 ? 'gold' : '');
+        gift.id = 'giftBox';
+        gift.innerHTML = '<div class="lid"></div><div class="box"></div><div class="ribbon"></div>';
+        area.appendChild(gift);
+        note.textContent = 'Toca el regalo 🎁';
+
+        const msg = encodeURIComponent(prizeText);
+        const wa = 'https://wa.me/56946971900?text=' + msg;
+        gift.addEventListener('click', ()=>{
+          gift.classList.add('open');
+          setTimeout(()=>{ window.open(wa, '_blank'); }, 600);
+        });
+      }
+    }
+
+
+    // Go!
+    init();
+    // === Gift box behavior ===
+    const gift = document.getElementById('giftBox');
+    if (gift) {
+      gift.addEventListener('click', ()=>{
+        gift.classList.add('open');
+        setTimeout(()=>{ window.open('https://wa.me/56946971900?text=TE%20HAS%20GANADO%20UNA%20CAJA%20DE%20CERVEZA%20PARA%20EL%20PROXIMO%20PASEO', '_blank'); }, 600);
+      });
+    }
+
+  </script>
+  <audio id="bgAudio" src="./audio/suspense.wav" preload="auto" loop></audio>
+  <audio id="winAudio" src="./audio/victory.wav" preload="auto"></audio>
+</body>
+</html>
